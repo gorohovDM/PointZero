@@ -1,0 +1,19 @@
+<div class="point-zero-sheet pz-item-sheet">
+  <header class="pz-item-sheet-header">
+    <span class="pz-item-type" id="pz-item-type">{{pz.title}}</span>
+    <label class="pz-field">Название<input data-key="name" value="{{pz.name}}" maxlength="{{pz.nameLimit}}" autocomplete="off" {{#unless pz.canEdit}}disabled{{/unless}}></label>
+  </header>
+  <main class="pz-section" id="pz-item-fields">
+    <div class="pz-item-sheet-grid">
+      {{#each pz.fields}}
+      <label class="pz-field">{{label}}<input data-key="{{key}}" data-kind="{{kind}}" maxlength="{{max}}" value="{{value}}" {{#if numeric}}inputmode="numeric"{{/if}} {{#unless ../pz.canEdit}}disabled{{/unless}}></label>
+      {{/each}}
+    </div>
+    {{#if pz.spell}}
+    <fieldset class="pz-item-sheet-flags"><legend>Свойства заклинания</legend>
+      {{#each pz.flags}}<label><input type="checkbox" data-key="{{key}}" {{#if value}}checked{{/if}} {{#unless ../pz.canEdit}}disabled{{/unless}}>{{label}}</label>{{/each}}
+    </fieldset>
+    {{/if}}
+    <label class="pz-field pz-area">Описание<textarea data-key="description" style="height:{{pz.descriptionHeight}}px" {{#unless pz.canEdit}}disabled{{/unless}}>{{pz.description}}</textarea></label>
+  </main>
+</div>

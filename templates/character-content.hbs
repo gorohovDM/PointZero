@@ -1,0 +1,43 @@
+{{#if main}}
+<div class="pz-main-grid">
+  <div class="pz-stack">
+    {{> pzTracker health}}
+    <section class="pz-section">
+      <div class="pz-section-head"><h2>Характеристики</h2></div>
+      <div class="pz-attributes"><span></span><span>Макс.</span><span>Тек.</span>
+        {{#each attributes}}
+          <button type="button" class="pz-attribute-roll" data-attribute-roll="{{id}}" title="Бросить кубы характеристики">{{name}}</button>
+          <input data-path="attributes.{{id}}.max" data-limit="5" inputmode="numeric" value="{{max}}">
+          <input data-path="attributes.{{id}}.current" data-current="{{id}}" inputmode="numeric" value="{{current}}">
+        {{/each}}
+      </div>
+    </section>
+    <section class="pz-section pz-skills">
+      <div class="pz-section-head"><h2>Навыки</h2>
+        <button type="button" class="pz-button" data-add="skill">+ Добавить</button>
+        <button type="button" class="pz-icon-button {{#if editingSkills}}is-active{{/if}}" data-skills-settings aria-label="Настройка навыков" title="Настройка навыков">⚙</button>
+      </div>
+      <div class="pz-skill-head"><span></span><span>Навык</span><span>Характеристика</span><span>Уровень</span><span>Кубы</span></div>
+      {{#each skills}}{{> pzSkill}}{{/each}}
+    </section>
+  </div>
+  <div class="pz-stack">{{> pzItemSection talent}}{{#each moduleTrackers}}{{> pzTracker}}{{/each}}</div>
+</div>
+{{/if}}
+{{#if equipment}}<div class="pz-stack">{{> pzItemSection weapon}}{{> pzItemSection armor}}{{> pzItemSection equipmentItems}}</div>{{/if}}
+{{#if magic}}{{> pzItemSection spell}}{{/if}}
+{{#if bio}}
+<section class="pz-section">
+  <div class="pz-section-head"><h2>Биография</h2></div>
+  <div class="pz-bio-grid">
+    <label class="pz-field">Возраст<input data-path="general.age" data-limit="100000" inputmode="numeric" value="{{general.age}}"></label>
+    <label class="pz-field">Пол<select data-path="general.sex">{{#each sexes}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+    <label class="pz-field">Раса<input data-path="general.race" maxlength="15" value="{{general.race}}"></label>
+    <label class="pz-field">Уровень допуска<input data-path="general.accessLevel" maxlength="4" value="{{general.accessLevel}}"></label>
+  </div>
+  <div class="pz-bio-areas">
+    {{#each bioAreas}}<label class="pz-field pz-area">{{label}}<textarea data-path="{{path}}" data-height="{{path}}" style="height:{{height}}px">{{value}}</textarea></label>{{/each}}
+  </div>
+</section>
+{{/if}}
+{{#if notes}}<section class="pz-section"><div class="pz-section-head"><h2>Заметки</h2></div><label class="pz-field pz-area"><textarea data-path="notes.text" data-height="notes.text" style="height:{{notesHeight}}px">{{notesText}}</textarea></label></section>{{/if}}

@@ -1,0 +1,19 @@
+<div class="point-zero-sheet">
+  <header class="pz-header">
+    <div class="pz-identity">
+      <label class="pz-field">Имя<input data-path="header.name" maxlength="100" autocomplete="off"></label>
+      <label class="pz-field">Роль<input data-path="header.role" maxlength="40" autocomplete="off"></label>
+      <div class="pz-experience"><span class="pz-label">Опыт</span><div id="pz-experience"></div></div>
+    </div>
+    <div class="pz-brand"><img src="systems/point-zero/assets/logo.png" alt="Point Zero"><span>Личное дело агента</span></div>
+  </header>
+  <nav class="pz-tabs" aria-label="Разделы листа">
+    <button type="button" data-tab="main">Основной блок</button>
+    <button type="button" data-tab="equipment">Снаряжение</button>
+    <button type="button" data-tab="magic">Магия</button>
+    <button type="button" data-tab="bio">Биография</button>
+    <button type="button" data-tab="notes">Заметки</button>
+  </nav>
+  <main id="pz-content" class="pz-content"></main>
+  <div class="pz-toast" role="status" aria-live="polite"></div>
+</div>

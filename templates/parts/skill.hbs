@@ -1,0 +1,13 @@
+<div class="pz-skill-row" data-skill-index="{{index}}">
+  <button type="button" class="pz-drag" draggable="true" aria-label="Перетащить навык">⠿</button>
+  <input data-path="skills.{{index}}.name" maxlength="40" value="{{name}}" aria-label="Навык">
+  <select data-path="skills.{{index}}.attribute" aria-label="Характеристика">
+    {{#each options}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+  </select>
+  {{#if deleteMode}}
+    <button type="button" class="pz-button pz-danger pz-skill-delete" data-delete-skill="{{index}}">Удалить</button>
+  {{else}}
+    <input data-path="skills.{{index}}.level" data-limit="99" inputmode="numeric" value="{{level}}" aria-label="Уровень">
+    <button type="button" class="pz-dice" data-roll="{{index}}" aria-label="Бросить {{dice}} кубов">{{dice}}</button>
+  {{/if}}
+</div>

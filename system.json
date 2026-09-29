@@ -1,0 +1,29 @@
+{
+  "id": "point-zero",
+  "title": "Point Zero",
+  "description": "Лист персонажа Point Zero для Foundry VTT 14",
+  "version": "0.2.4",
+  "compatibility": {
+    "minimum": 14,
+    "verified": 14
+  },
+  "esmodules": [
+    "point-zero.mjs"
+  ],
+  "styles": [
+    "styles/point-zero.css"
+  ],
+  "documentTypes": {
+    "Actor": {
+      "character": {}
+    },
+    "Item": {
+      "talent": {},
+      "weapon": {},
+      "armor": {},
+      "equipment": {},
+      "spell": {}
+    }
+  },
+  "primaryTokenAttribute": "sheet.trackers.health"
+}

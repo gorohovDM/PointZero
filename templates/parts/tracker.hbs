@@ -1,0 +1,6 @@
+<section class="pz-section">
+  <div class="pz-section-head"><h2>{{title}}</h2>{{#if module}}<span class="pz-badge">Модуль</span>{{/if}}</div>
+  <div class="pz-tracker" style="--track-columns:{{columns}}">
+    {{#each cells}}<button type="button" class="pz-cell {{#if on}}is-on{{/if}}" data-tracker="{{../name}}" data-index="{{index}}" role="checkbox" aria-checked="{{on}}" aria-label="{{number}} из {{../total}}"></button>{{/each}}
+  </div>
+</section>

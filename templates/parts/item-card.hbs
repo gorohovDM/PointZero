@@ -1,0 +1,10 @@
+<article class="pz-item" data-pz-item-id="{{id}}" data-item-type="{{type}}">
+  {{#if canEdit}}<div class="pz-item-controls">
+    <button type="button" class="pz-item-drag" data-item-drag="{{id}}" draggable="true" aria-label="Перетащить {{name}}" title="Изменить порядок">⠿</button>
+    <button type="button" class="pz-item-delete" data-delete-item="{{id}}" aria-label="Удалить {{name}}" title="Удалить">×</button>
+  </div>{{/if}}
+  <h3><button type="button" class="pz-item-open" data-open-item="{{id}}" title="Открыть Item">{{name}}</button></h3>
+  {{#if flags}}<div class="pz-spell-flags">{{#each flags}}<span class="pz-spell-flag">{{this}}</span>{{/each}}</div>{{/if}}
+  <dl class="pz-item-facts">{{#each facts}}<div class="pz-item-fact"><dt>{{label}}</dt><dd>{{value}}</dd></div>{{/each}}</dl>
+  {{#if description}}<div class="pz-item-description">{{description}}</div>{{/if}}
+</article>
