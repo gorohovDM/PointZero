@@ -185,16 +185,14 @@ const {PointZeroCharacterSheet}=await import('../module/character-sheet.mjs');
 const {migrateLegacyItems}=await import('../module/migration.mjs');
 const {PointZeroCharacterData}=await import('../module/data-models.mjs');
 
-test('Item view refreshes remote name and untouched fields while retaining a local edit', async () => {
+test('Item view retains a local edit across rerenders', async () => {
   const item={type:'weapon',name:'Old',system:{damage:'1',bonus:'0'}};
   const sheet=new PointZeroItemSheet();sheet.item=item;sheet.isEditable=true;
   await sheet._prepareContext({});
-  sheet.draft.change('system.damage','2');
-  item.name='Remote';item.system.bonus='5';
+  sheet.localState.system.damage='2';
   const context=await sheet._prepareContext({});
-  assert.equal(context.pz.name,'Remote');
+  assert.equal(context.pz.name,'Old');
   assert.equal(context.pz.fields.find(field=>field.key==='damage').value,'2');
-  assert.equal(context.pz.fields.find(field=>field.key==='bonus').value,'5');
 });
 
 test('Item rerender re-arms pending autosave', async () => {
@@ -204,8 +202,9 @@ test('Item rerender re-arms pending autosave', async () => {
   const sheet=new PointZeroItemSheet();sheet.item=item;sheet.isEditable=true;
   const first=makeRoot();sheet.mount(first);
   first.listeners.input({target:{dataset:{key:'damage'},type:'text',value:'2'}});
+  first.listeners.change({target:{dataset:{key:'damage'},type:'text',value:'2'}});
   sheet.mount(makeRoot());
-  await new Promise(resolve=>setTimeout(resolve,220));
+  await new Promise(resolve=>setTimeout(resolve,760));
   assert.equal(saves,1);assert.equal(item.system.damage,'2');
 });
 
@@ -222,10 +221,10 @@ test('character model starts with zero numbers and normalizes malformed old data
 });
 
 for (const Sheet of [PointZeroItemSheet,PointZeroCharacterSheet]) {
-  test(`${Sheet.name} keeps its draft when pre-close save fails`, async () => {
-    const sheet=new Sheet();sheet.draft={dirty:true};sheet.flushDraft=async()=>{throw Error('server rejected');};
-    await assert.rejects(sheet._preClose({}),/server rejected/);
-    assert.deepEqual(sheet.draft,{dirty:true});
+  test(`${Sheet.name} can close after a save failure`, async () => {
+    const sheet=new Sheet();sheet.flushChanges=async()=>{throw Error('server rejected');};
+    const oldError=console.error;console.error=()=>{};
+    try {await sheet._preClose({});} finally {console.error=oldError;}
   });
 }
 
@@ -324,7 +323,7 @@ test('read-only character sheet disables controls and ignores edits', async () =
   listeners.input({target:{dataset:{path:'header.role'},value:'Local'}});
   const target={closest(selector){return selector==='[data-tracker]'?{dataset:{tracker:'health',index:'1'}}:null;}};
   await listeners.click({target});
-  assert.equal(sheet.draft.dirty.size,0);
+  assert.equal(sheet.changed,false);
 });
 
 test('character rerender re-arms pending autosave', async () => {
@@ -335,11 +334,14 @@ test('character rerender re-arms pending autosave', async () => {
     return {listeners,isConnected:true,addEventListener(type,listener){listeners[type]=listener;},querySelector(selector){return {'[data-path="header.name"]':name,'[data-path="header.role"]':role,'#pz-experience':experience,'[data-tab="magic"]':tabs[1],'#pz-content':content}[selector];},querySelectorAll(selector){return selector==='[data-tab]'?tabs:[];}};
   };
   let saves=0;
-  const actor={name:'Actor',system:{sheet:{}},items:{filter:()=>[]},async update(changes){saves++;for(const [path,value] of Object.entries(changes))updatePath(this,path,value);return this;}};
+  const actor={name:'Actor',system:{sheet:{}},items:{filter:()=>[]},async update(changes){saves++;for(const [path,value] of Object.entries(changes))updatePath(this,path,value);this.system.sheet.header.experience=Number(this.system.sheet.header.experience);return undefined;}};
   const sheet=new PointZeroCharacterSheet();sheet.actor=actor;sheet.isEditable=true;sheet.pageTemplate=()=>'';
   const first=makeRoot();sheet.mount(first);
   first.listeners.input({target:{dataset:{path:'header.role'},value:'Agent'}});
+  first.listeners.input({target:{dataset:{path:'header.experience'},value:'3'}});
+  first.listeners.change({target:{dataset:{path:'header.role'},value:'Agent'}});
   sheet.mount(makeRoot());
-  await new Promise(resolve=>setTimeout(resolve,220));
-  assert.equal(saves,1);assert.equal(actor.system.sheet.header.role,'Agent');
+  await new Promise(resolve=>setTimeout(resolve,760));
+  assert.equal(saves,1);assert.equal(actor.system.sheet.header.role,'Agent');assert.equal(actor.system.sheet.header.experience,3);
+  assert.equal(sheet.changed,false);
 });

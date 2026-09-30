@@ -1,5 +1,3 @@
-import {DraftChanges} from './draft.mjs';
-import {SkillDraft} from './skill-draft.mjs';
 import {migrateLegacyItems} from './migration.mjs';
 import {STANDARD_SKILLS} from './data-models.mjs';
 
@@ -67,33 +65,35 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
     this.mount(this.element.querySelector('.point-zero-sheet'));
   }
   async _preClose(options) {
-    await this.flushDraft?.();
+    try { await this.flushChanges?.(); }
+    catch (error) { console.error('Point Zero: character sheet could not save before closing', error); }
     await super._preClose(options);
   }
   _onClose(options) {
-    this.draft = null;
-    this.skillDraft = null;
-    this.draftName = null;
+    clearTimeout(this.saveTimer);
+    this.localState = null;
+    this.changed = false;
     this.activePath = null;
     this.activeSelection = null;
-    this.flushDraft = null;
+    this.flushChanges = null;
     super._onClose(options);
   }
   mount(root) {
     if (!root) return;
     const actor = this.actor;
     const current=()=>({name:actor.name,...mergeState(actor.system.sheet)});
-    const readSkills=()=>mergeState(actor.system.sheet).skills;
-    this.draft ??= new DraftChanges(current());
-    this.skillDraft ??= new SkillDraft(readSkills());
-    let state = this.draft.rebase(current()), dragIndex = null, draggedItemId = null;
-    state.skills=this.skillDraft.rebase(readSkills());
-    this.draftName = state.name;
+    this.changed ??= false;
+    let state = this.localState ??= current(), dragIndex = null, draggedItemId = null;
     clearTimeout(this.saveTimer);
     const content = root.querySelector('#pz-content');
     const setting = key => game.settings.get('point-zero', key);
     const get = path => path.split('.').reduce((obj, key) => obj?.[key], state);
-    const set = (path, value) => this.draft.change(path,value);
+    const set = (path, value) => {
+      const keys=path.split('.'), last=keys.pop();
+      keys.reduce((part,key)=>part[key]??={},state)[last]=value;
+      this.changed=true;
+    };
+    const setSkills = skills => {state.skills=skills;this.changed=true;};
     const trackerData = (title,name,total,columns=total,module=false) => {
       const value=name==='experience'?state.header.experience:state.trackers[name];
       return {title,name,total,columns,module,cells:Array.from({length:total},(_,index)=>({index,number:index+1,on:index<value}))};
@@ -111,7 +111,7 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
     })});
     function render() {
       if (!setting('magic') && this.activeTab==='magic') this.activeTab='main';
-      root.querySelector('[data-path="header.name"]').value=this.draftName;
+      root.querySelector('[data-path="header.name"]').value=state.name;
       root.querySelector('[data-path="header.role"]').value=state.header.role;
       const experience=trackerData('Опыт','experience',12);
       root.querySelector('#pz-experience').innerHTML=`<div class="pz-tracker" style="--track-columns:12">${experience.cells.map(cell=>`<button type="button" class="pz-cell ${cell.on?'is-on':''}" data-tracker="experience" data-index="${cell.index}" role="checkbox" aria-checked="${cell.on}" aria-label="${cell.number} из 12"></button>`).join('')}</div>`;
@@ -131,9 +131,22 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       if (!this.isEditable) root.querySelectorAll('input,textarea,select,[data-tracker],[data-add],[data-delete-skill],[data-skills-settings],.pz-drag,[data-item-drag],[data-delete-item]').forEach(control=>{control.disabled=true;control.draggable=false;});
     }
     const captureHeights=()=>{if(!this.isEditable)return;content.querySelectorAll('textarea').forEach(t=>{if(t.dataset.height){const height=Math.round(t.getBoundingClientRect().height);if(height!==Number(state.ui.textareaHeights[t.dataset.height]||88))set('ui.textareaHeights',{...state.ui.textareaHeights,[t.dataset.height]:height});}});};
-    const save=async()=>{clearTimeout(this.saveTimer);if(root.isConnected&&this.isEditable)captureHeights();try{if(this.draft.conflicts.size||this.skillDraft.conflicts.size)ui.notifications.warn('Лист изменён другим пользователем: при сохранении совпадающих полей приоритет у ваших правок');this.savePromise=(this.savePromise??Promise.resolve()).catch(()=>{}).then(async()=>{await this.draft.flush(actor,path=>path==='name'?'name':`system.sheet.${path}`,current);await this.skillDraft.flush(actor,readSkills);state.skills=this.skillDraft.rebase(readSkills());});await this.savePromise;}catch(error){console.error('Point Zero: save failed',error);ui.notifications.error('Не удалось сохранить лист');throw error;}};
-    this.flushDraft=save;
-    const scheduleSave=()=>{clearTimeout(this.saveTimer);this.saveTimer=setTimeout(()=>save().catch(()=>{}),150);};
+    const save=async()=>{
+      clearTimeout(this.saveTimer);
+      if(root.isConnected&&this.isEditable)captureHeights();
+      if(!this.changed)return;
+      const {name,...sheet}=clone(state);
+      try {
+        await actor.update({name:name||actor.name,'system.sheet':sheet});
+        this.changed=false;
+      } catch(error) {
+        console.error('Point Zero: save failed',error);
+        ui.notifications.error('Не удалось сохранить лист');
+        throw error;
+      }
+    };
+    this.flushChanges=save;
+    const scheduleSave=()=>{clearTimeout(this.saveTimer);this.saveTimer=setTimeout(()=>save().catch(()=>{}),700);};
     const toast=message=>{const node=root.querySelector('.pz-toast');node.textContent=message;node.classList.add('is-visible');setTimeout(()=>node.classList.remove('is-visible'),2200);};
     function clean(el) {
       let value=el.value;
@@ -148,17 +161,16 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       const el=event.target;
       if(!this.isEditable||!el.dataset.path)return;
 
-      if(el.dataset.path==='header.name'){this.draftName=el.value;set('name',el.value);scheduleSave();return;}
+      if(el.dataset.path==='header.name'){set('name',el.value);return;}
       const value=clean(el);
-      if(el.dataset.path.startsWith('skills.')){const keys=el.dataset.path.split('.');state.skills=this.skillDraft.edit(state.skills[Number(keys[1])].id,keys[2],value);}
+      if(el.dataset.path.startsWith('skills.')){const keys=el.dataset.path.split('.');state.skills[Number(keys[1])][keys[2]]=value;setSkills(state.skills);}
       else set(el.dataset.path,value);
       if(el.dataset.path.endsWith('.max')){const id=el.dataset.path.split('.')[1];set(`attributes.${id}.current`,clamp(state.attributes[id].current,0,Number(state.attributes[id].max)));const currentInput=content.querySelector(`[data-path="attributes.${id}.current"]`);if(currentInput)currentInput.value=state.attributes[id].current;}
       content.querySelectorAll('[data-roll]').forEach(button=>{const s=state.skills[Number(button.dataset.roll)];const n=Number(state.attributes[s.attribute]?.current||0)+Number(s.level||0);button.textContent=n;button.setAttribute('aria-label',`Бросить ${n} кубов`);});
-      scheduleSave();
     });
     root.addEventListener('change',event=>{
       const el=event.target;
-      if(this.isEditable&&el.dataset.path){if(el.dataset.path==='header.name'){this.draftName=el.value;set('name',el.value);}else if(el.dataset.path.startsWith('skills.')){const keys=el.dataset.path.split('.');state.skills=this.skillDraft.edit(state.skills[Number(keys[1])].id,keys[2],clean(el));}else set(el.dataset.path,el.type==='checkbox'?el.checked:clean(el));scheduleSave();}
+      if(this.isEditable&&el.dataset.path){if(el.dataset.path==='header.name'){set('name',el.value);}else if(el.dataset.path.startsWith('skills.')){const keys=el.dataset.path.split('.');state.skills[Number(keys[1])][keys[2]]=clean(el);setSkills(state.skills);}else set(el.dataset.path,el.type==='checkbox'?el.checked:clean(el));scheduleSave();}
     });
     const rememberFocus=el=>{if(!el.dataset.path)return;this.activePath=el.dataset.path;this.activeSelection=typeof el.selectionStart==='number'?[el.selectionStart,el.selectionEnd]:null;};
     root.addEventListener('focusin',event=>rememberFocus(event.target));
@@ -175,8 +187,8 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       const tab=event.target.closest('[data-tab]');if(tab){captureHeights();this.activeTab=tab.dataset.tab;render.call(this);return;}
       const cell=event.target.closest('[data-tracker]');if(cell){if(!this.isEditable)return;const name=cell.dataset.tracker,index=Number(cell.dataset.index)+1,path=name==='experience'?'header.experience':`trackers.${name}`,value=get(path);set(path,value===index?index-1:index);render.call(this);scheduleSave();return;}
       if(event.target.closest('[data-skills-settings]')){if(!this.isEditable)return;this.editingSkills=!this.editingSkills;render.call(this);return;}
-      const addButton=event.target.closest('[data-add="skill"]');if(addButton){if(!this.isEditable)return;state.skills=this.skillDraft.add({id:`addskill_${foundry.utils.randomID()}`,name:'',attribute:'strength',level:0,standard:false});render.call(this);scheduleSave();return;}
-      const deleteSkill=event.target.closest('[data-delete-skill]');if(deleteSkill){if(!this.isEditable)return;state.skills=this.skillDraft.remove(state.skills[Number(deleteSkill.dataset.deleteSkill)].id);render.call(this);scheduleSave();return;}
+      const addButton=event.target.closest('[data-add="skill"]');if(addButton){if(!this.isEditable)return;state.skills.push({id:`addskill_${foundry.utils.randomID()}`,name:'',attribute:'strength',level:0,standard:false});setSkills(state.skills);render.call(this);scheduleSave();return;}
+      const deleteSkill=event.target.closest('[data-delete-skill]');if(deleteSkill){if(!this.isEditable)return;state.skills.splice(Number(deleteSkill.dataset.deleteSkill),1);setSkills(state.skills);render.call(this);scheduleSave();return;}
       const attributeRoll=event.target.closest('[data-attribute-roll]');if(attributeRoll){const id=attributeRoll.dataset.attributeRoll,count=Number(state.attributes[id]?.current||0);if(count<1){toast('Для броска нужен хотя бы один куб');return;}const result=await new Roll(`${count}d6`).evaluate();await result.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`${ATTRIBUTES.find(([key])=>key===id)?.[1]} · ${count}d6`});return;}
       const roll=event.target.closest('[data-roll]');if(roll){const s=state.skills[Number(roll.dataset.roll)],count=Number(state.attributes[s.attribute]?.current||0)+Number(s.level||0);if(count<1){toast('Для броска нужен хотя бы один куб');return;}const result=await new Roll(`${count}d6`).evaluate();await result.toMessage({speaker:ChatMessage.getSpeaker({actor}),flavor:`${esc(s.name)} · ${count}d6`});}
     });
@@ -205,11 +217,11 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       }
       const row=event.target.closest('[data-skill-index]');if(!this.isEditable||!row||dragIndex===null)return;
       event.preventDefault();event.stopPropagation();
-      const to=Number(row.dataset.skillIndex);state.skills.splice(to,0,state.skills.splice(dragIndex,1)[0]);state.skills=this.skillDraft.reorder(state.skills.map(skill=>skill.id));dragIndex=null;render.call(this);scheduleSave();
+      const to=Number(row.dataset.skillIndex);state.skills.splice(to,0,state.skills.splice(dragIndex,1)[0]);setSkills(state.skills);dragIndex=null;render.call(this);scheduleSave();
     });
     root.addEventListener('dragend',()=>{dragIndex=null;draggedItemId=null;});
     render.call(this);
-    if(this.draft.dirty.size||this.skillDraft.hasChanges) scheduleSave();
+    if(this.changed) scheduleSave();
     if(this.activePath){const focused=root.querySelector(`[data-path="${this.activePath}"]`);focused?.focus({preventScroll:true});if(focused&&this.activeSelection&&typeof focused.setSelectionRange==='function')focused.setSelectionRange(...this.activeSelection);}
   }
 }
