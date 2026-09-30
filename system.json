@@ -2,7 +2,16 @@
   "id": "point-zero",
   "title": "Point Zero",
   "description": "Лист персонажа Point Zero для Foundry VTT 14",
-  "version": "0.2.5",
+  "version": "0.2.6",
+  "authors": [
+    {
+      "name": "gorohovDM",
+      "url": "https://github.com/gorohovDM"
+    }
+  ],
+  "url": "https://github.com/gorohovDM/PointZero",
+  "manifest": "https://raw.githubusercontent.com/gorohovDM/PointZero/main/system.json",
+  "download": "https://github.com/gorohovDM/PointZero/releases/download/v0.2.6/point-zero.zip",
   "compatibility": {
     "minimum": 14,
     "verified": 14

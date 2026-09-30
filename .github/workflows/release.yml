@@ -1,0 +1,41 @@
+name: Publish Foundry system
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'system.json'
+      - '.github/workflows/release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read system version
+        id: version
+        run: echo "value=$(node -p 'JSON.parse(require("fs").readFileSync("system.json", "utf8")).version')" >> "$GITHUB_OUTPUT"
+      - name: Build and check package
+        run: |
+          node -e 'const m=require("./system.json"); if (!m.download.endsWith("/v"+m.version+"/point-zero.zip")) process.exit(1)'
+          mkdir dist
+          cp system.json dist/system.json
+          zip -q -r dist/point-zero.zip system.json point-zero.mjs module templates styles assets README.md LICENSE
+          test "$(unzip -Z1 dist/point-zero.zip | head -n 1)" = system.json
+          unzip -tq dist/point-zero.zip
+      - name: Publish immutable version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists. Increase system.json version for a new release." >&2
+            exit 1
+          fi
+          gh release create "v${VERSION}" dist/system.json dist/point-zero.zip \
+            --target "$GITHUB_SHA" --title "Point Zero v${VERSION}" \
+            --notes "Foundry VTT 14 system package. Install using the manifest URL from system.json." \
+            --latest

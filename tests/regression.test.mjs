@@ -345,3 +345,37 @@ test('character rerender re-arms pending autosave', async () => {
   assert.equal(saves,1);assert.equal(actor.system.sheet.header.role,'Agent');assert.equal(actor.system.sheet.header.experience,3);
   assert.equal(sheet.changed,false);
 });
+
+test('character portrait and prototype token use Foundry Actor fields and controls', async () => {
+  game.settings={get:()=>false};
+  const portrait={src:''},edit={hidden:false},tokenButton={hidden:false};
+  const tabs=[{dataset:{tab:'main'},classList:{toggle(){}},setAttribute(){}},{dataset:{tab:'magic'},classList:{toggle(){}},setAttribute(){}}];
+  const name={value:''},role={value:''},experience={innerHTML:''},content={innerHTML:'',querySelectorAll:()=>[]};
+  const listeners={};
+  const root={isConnected:true,addEventListener(type,listener){listeners[type]=listener;},querySelector(selector){return {
+    '[data-portrait-image]':portrait,'[data-edit-portrait]':edit,'[data-configure-token]':tokenButton,
+    '[data-path="header.name"]':name,'[data-path="header.role"]':role,'#pz-experience':experience,
+    '[data-tab="magic"]':tabs[1],'#pz-content':content
+  }[selector];},querySelectorAll(selector){return selector==='[data-tab]'?tabs:[];}};
+  const actor={name:'Agent',img:'old.webp',prototypeToken:{texture:{src:'token.webp'}},system:{sheet:{}},items:{filter:()=>[]},
+    async update(changes){assert.deepEqual(Object.keys(changes),['img']);this.img=changes.img;}};
+  const originalPicker=foundry.applications.apps;
+  const originalConfig=globalThis.CONFIG;
+  let pickerOptions,tokenOptions;
+  foundry.applications.apps={FilePicker:{implementation:class {constructor(options){pickerOptions=options;}render(){return this;}}}};
+  globalThis.CONFIG={Token:{prototypeSheetClass:class {constructor(options){tokenOptions=options;}render(){return this;}}}};
+  try {
+    const sheet=new PointZeroCharacterSheet();sheet.actor=actor;sheet.isEditable=true;sheet.pageTemplate=()=>'';
+    sheet.mount(root);
+    assert.equal(portrait.src,'old.webp');
+    assert.equal(edit.hidden,false);assert.equal(tokenButton.hidden,false);
+    await listeners.click({target:{closest(selector){return selector==='[data-edit-portrait]'?edit:null;}}});
+    assert.equal(pickerOptions.type,'image');assert.equal(pickerOptions.current,'old.webp');
+    await pickerOptions.callback('new.webp');
+    assert.equal(actor.img,'new.webp');assert.equal(portrait.src,'new.webp');
+    await listeners.click({target:{closest(selector){return selector==='[data-configure-token]'?tokenButton:null;}}});
+    assert.equal(tokenOptions.prototype,actor.prototypeToken);
+    sheet.isEditable=false;sheet.mount(root);
+    assert.equal(edit.hidden,true);assert.equal(tokenButton.hidden,true);
+  } finally {foundry.applications.apps=originalPicker;globalThis.CONFIG=originalConfig;}
+});

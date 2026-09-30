@@ -81,6 +81,12 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
   mount(root) {
     if (!root) return;
     const actor = this.actor;
+    const portrait = root.querySelector('[data-portrait-image]');
+    if (portrait) portrait.src = actor.img || 'icons/svg/mystery-man.svg';
+    const editPortrait = root.querySelector('[data-edit-portrait]');
+    if (editPortrait) editPortrait.hidden = !this.isEditable;
+    const configureToken = root.querySelector('[data-configure-token]');
+    if (configureToken) configureToken.hidden = !this.isEditable || Boolean(actor.isToken);
     const current=()=>({name:actor.name,...mergeState(actor.system.sheet)});
     this.changed ??= false;
     let state = this.localState ??= current(), dragIndex = null, draggedItemId = null;
@@ -182,6 +188,22 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       if(this.isEditable&&el.matches('textarea[data-height]')){scheduleSave();}
     });
     root.addEventListener('click',async event=>{
+      if(event.target.closest('[data-edit-portrait]')){
+        if(!this.isEditable)return;
+        new foundry.applications.apps.FilePicker.implementation({
+          type:'image',current:actor.img,
+          callback:async path=>{
+            try { await actor.update({img:path}); if(portrait)portrait.src=path; }
+            catch(error){console.error('Point Zero: portrait could not be saved',error);ui.notifications.error('Не удалось сохранить изображение персонажа');}
+          }
+        }).render({force:true});
+        return;
+      }
+      if(event.target.closest('[data-configure-token]')){
+        if(!this.isEditable||actor.isToken)return;
+        new CONFIG.Token.prototypeSheetClass({prototype:actor.prototypeToken}).render({force:true});
+        return;
+      }
       const itemLink=event.target.closest('[data-open-item]');if(itemLink){actor.items.get(itemLink.dataset.openItem)?.sheet.render(true);return;}
       const deleteItem=event.target.closest('[data-delete-item]');if(deleteItem){if(!this.isEditable)return;await actor.deleteEmbeddedDocuments('Item',[deleteItem.dataset.deleteItem]);return;}
       const tab=event.target.closest('[data-tab]');if(tab){captureHeights();this.activeTab=tab.dataset.tab;render.call(this);return;}
