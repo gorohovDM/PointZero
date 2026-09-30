@@ -43,7 +43,7 @@ html.theme-dark .point-zero-sheet, .theme-dark .point-zero-sheet, [data-theme="d
 html.theme-dark .point-zero-sheet .pz-brand img,.theme-dark .point-zero-sheet .pz-brand img,[data-theme="dark"] .point-zero-sheet .pz-brand img{filter:invert(1) hue-rotate(180deg);mix-blend-mode:screen}
 .point-zero-window.theme-light .point-zero-sheet .pz-brand img{filter:none;mix-blend-mode:multiply}
 .point-zero-window.theme-dark .point-zero-sheet .pz-brand img{filter:invert(1) hue-rotate(180deg);mix-blend-mode:screen}
-.point-zero-sheet .pz-tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--pz-line);margin-bottom:14px}
+.point-zero-sheet .pz-tabs{display:flex;gap:4px;overflow-x:auto;padding:4px 5px;border-bottom:1px solid var(--pz-line);margin-bottom:10px}
 .point-zero-sheet .pz-tabs button{background:transparent;color:var(--pz-muted);border:0;border-bottom:3px solid transparent;padding:11px 14px;white-space:nowrap;font-weight:600}
 .point-zero-sheet .pz-tabs button:hover{color:var(--pz-text);background:var(--pz-soft)}
 .point-zero-sheet .pz-tabs button.is-active{color:var(--pz-accent);border-bottom-color:var(--pz-accent)}
