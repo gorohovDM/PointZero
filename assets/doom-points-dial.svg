@@ -1,0 +1,41 @@
+<svg class="doom-dial" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+  <style>
+    .doom-dial__rim { stroke: var(--doom-rim, #315a60); }
+    .doom-dial__fine { stroke: var(--doom-fine, #608086); }
+    .doom-dial__cardinal { fill: var(--doom-cardinal, #183b41); stroke: var(--doom-rim, #315a60); transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease; }
+    .doom-dial__core { fill: var(--doom-core, #10282d); stroke: var(--doom-core-line, #477077); transition: fill 180ms ease, filter 180ms ease; }
+    .doom-dial__crack { stroke: var(--doom-crack, #789298); opacity: .3; transition: stroke 180ms ease, opacity 180ms ease, filter 180ms ease; }
+    .doom-dial__tick { stroke: var(--doom-tick, #6f878b); transition: stroke 160ms ease, filter 160ms ease; }
+    .doom-dial__tick.is-lit { stroke: var(--doom-lit, #f08055); filter: drop-shadow(0 0 2.5px var(--doom-glow, rgba(240, 128, 85, .62))); }
+    .doom-dial.is-max .doom-dial__core { fill: var(--doom-core-max, #25484d); filter: drop-shadow(0 0 5px var(--doom-glow, rgba(240, 128, 85, .62))); }
+    .doom-dial.is-max .doom-dial__cardinal { fill: var(--doom-lit, #f08055); stroke: var(--doom-lit, #f08055); filter: drop-shadow(0 0 3px var(--doom-glow, rgba(240, 128, 85, .62))); }
+    .doom-dial.is-max .doom-dial__crack { stroke: var(--doom-lit, #f08055); opacity: .62; filter: drop-shadow(0 0 1.5px var(--doom-glow, rgba(240, 128, 85, .62))); }
+    @media (prefers-reduced-motion: reduce) { .doom-dial__cardinal, .doom-dial__core, .doom-dial__crack, .doom-dial__tick { transition: none; } }
+  </style>
+  <circle class="doom-dial__rim" cx="60" cy="60" r="51" stroke-width="2"/>
+  <circle class="doom-dial__fine" cx="60" cy="60" r="44" stroke-width="1" opacity=".58"/>
+  <path class="doom-dial__cardinal" d="M60 2l4 7-4 7-4-7 4-7ZM118 60l-7 4-7-4 7-4 7 4ZM60 118l-4-7 4-7 4 7-4 7ZM2 60l7-4 7 4-7 4-7-4Z" stroke-width="1.5" stroke-linejoin="round"/>
+  <path class="doom-dial__fine" d="M20.4 20.4l7.1 2.1-5 5-2.1-7.1ZM99.6 20.4l-2.1 7.1-5-5 7.1-2.1ZM99.6 99.6l-7.1-2.1 5-5 2.1 7.1ZM20.4 99.6l2.1-7.1 5 5-7.1 2.1Z" stroke-width="1.2" stroke-linejoin="round"/>
+  <circle class="doom-dial__core" cx="60" cy="60" r="31" stroke-width="1.5"/>
+  <g class="doom-dial__cracks" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round">
+    <path class="doom-dial__crack" d="M34.5 47.5 45 51l6-7 5.5 9-3 6"/>
+    <path class="doom-dial__crack" d="M84 43.5 74.5 51l3.5 8-8 5.5"/>
+    <path class="doom-dial__crack" d="M34 72.5 47.5 68l7.5 5.5 6-6"/>
+    <path class="doom-dial__crack" d="M83.5 77 74 68.5 68 75l-7-7.5"/>
+    <path class="doom-dial__crack" d="M47.5 68 44 61l9.5-2M74 68.5l3-9.5M45 51l-3.5 7 12 1M74.5 51l-7-5-4 9"/>
+  </g>
+  <g class="doom-dial__ticks" stroke-width="4" stroke-linecap="round">
+    <path class="doom-dial__tick doom-dial__tick--1" d="M60 18v8"/>
+    <path class="doom-dial__tick doom-dial__tick--2" d="M81 23.6l-4 6.9"/>
+    <path class="doom-dial__tick doom-dial__tick--3" d="M96.4 39l-6.9 4"/>
+    <path class="doom-dial__tick doom-dial__tick--4" d="M102 60h-8"/>
+    <path class="doom-dial__tick doom-dial__tick--5" d="M96.4 81l-6.9-4"/>
+    <path class="doom-dial__tick doom-dial__tick--6" d="M81 96.4l-4-6.9"/>
+    <path class="doom-dial__tick doom-dial__tick--7" d="M60 102v-8"/>
+    <path class="doom-dial__tick doom-dial__tick--8" d="M39 96.4l4-6.9"/>
+    <path class="doom-dial__tick doom-dial__tick--9" d="M23.6 81l6.9-4"/>
+    <path class="doom-dial__tick doom-dial__tick--10" d="M18 60h8"/>
+    <path class="doom-dial__tick doom-dial__tick--11" d="M23.6 39l6.9 4"/>
+    <path class="doom-dial__tick doom-dial__tick--12" d="M39 23.6l4 6.9"/>
+  </g>
+</svg>
