@@ -1,6 +1,7 @@
 import {PointZeroCharacterData, PointZeroItemData} from './module/data-models.mjs';
 import {PointZeroCharacterSheet} from './module/character-sheet.mjs';
 import {PointZeroItemSheet} from './module/item-sheet.mjs';
+import {DoomPointsHUD, registerDoomPointsSettings} from './module/doom-points.mjs';
 
 export const RULES = {
   magic: ['Магия', false], will: ['Воля', false], radiation: ['Радиация', false],
@@ -8,6 +9,9 @@ export const RULES = {
 };
 
 Hooks.once('init', () => {
+  const doomHUD = new DoomPointsHUD();
+  registerDoomPointsSettings(value => doomHUD.render(value));
+  Hooks.once('ready', () => doomHUD.mount().catch(error => console.error('Point Zero: не удалось показать Doom Points', error)));
   CONFIG.Actor.dataModels.character = PointZeroCharacterData;
   for (const type of ['talent', 'weapon', 'armor', 'equipment', 'spell']) CONFIG.Item.dataModels[type] = PointZeroItemData;
   for (const [key, [name, defaultValue]] of Object.entries(RULES)) {

@@ -2,11 +2,77 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DraftChanges} from '../module/draft.mjs';
 import {SkillDraft} from '../module/skill-draft.mjs';
+import {DoomPointsStore, clampDoomPoints, clampPosition, parseDoomPoints, registerDoomPointsSettings} from '../module/doom-points.mjs';
 
 const updatePath = (object, path, value) => {
   const keys=path.split('.'), last=keys.pop();
   keys.reduce((part,key)=>part[key]??={},object)[last]=value;
 };
+
+test('Doom Points settings and number boundaries', () => {
+  const registrations={};
+  game.settings={register(namespace,key,config){registrations[key]=config;}};
+  registerDoomPointsSettings(()=>{});
+  assert.equal(registrations.doomPoints.scope,'world');
+  assert.equal(registrations.doomPoints.default,0);
+  assert.equal(registrations.doomPointsPosition.scope,'user');
+  assert.equal(parseDoomPoints('000'),0);
+  assert.equal(parseDoomPoints('999'),999);
+  for(const invalid of ['', '-1', '1.5', '1e2', '1000', ' 2']) assert.equal(parseDoomPoints(invalid),null);
+  assert.equal(clampDoomPoints(1200),999);
+  assert.deepEqual(clampPosition({x:900,y:-5},{width:300,height:200},{width:216,height:136}),{x:84,y:0});
+});
+
+test('Doom Points changes serialize, use latest remote value, and announce once', async () => {
+  const previousUser=game.user;
+  const previousChat=globalThis.ChatMessage;
+  let value=0,release;
+  const messages=[];
+  game.user={isGM:true};
+  game.settings={get:()=>value,async set(namespace,key,next){
+    if(next===1) await new Promise(resolve=>{release=resolve;});
+    value=next;
+  }};
+  globalThis.ChatMessage={create:async message=>messages.push(message)};
+  try {
+    const store=new DoomPointsStore();
+    const first=store.change(current=>current+1);
+    const second=store.change(current=>current+1);
+    await new Promise(resolve=>setImmediate(resolve));
+    release();
+    await Promise.all([first,second]);
+    assert.equal(value,2);
+    assert.equal(messages.length,2);
+    assert.match(messages[1].content,/\+1; текущий запас: 2/);
+    value=7; // update received from another client before the next local operation
+    await store.change(current=>current-1);
+    assert.equal(value,6);
+    assert.match(messages[2].content,/-1; текущий запас: 6/);
+    await store.change(6);
+    assert.equal(messages.length,3);
+    game.user.isGM=false;
+    assert.equal(await store.change(10),false);
+    assert.equal(value,6);
+  } finally {game.user=previousUser;globalThis.ChatMessage=previousChat;}
+});
+
+test('Doom Points save errors leave the queue usable and never announce a failed change', async () => {
+  const previousUser=game.user;
+  const previousChat=globalThis.ChatMessage;
+  let value=0,fail=true,announcements=0;
+  game.user={isGM:true};
+  game.settings={get:()=>value,async set(namespace,key,next){if(fail){fail=false;throw Error('denied');}value=next;}};
+  globalThis.ChatMessage={create:async()=>{announcements++;}};
+  try {
+    const store=new DoomPointsStore();
+    await assert.rejects(store.change(1),/denied/);
+    assert.equal(value,0);assert.equal(announcements,0);
+    await store.change(1);
+    assert.equal(value,1);assert.equal(announcements,1);
+    await store.change(1000);
+    assert.equal(value,1);assert.equal(announcements,1);
+  } finally {game.user=previousUser;globalThis.ChatMessage=previousChat;}
+});
 
 test('an open Item follows untouched remote fields and only saves local changes', async () => {
   const item={name:'Old',system:{damage:'1',bonus:'0'},async update(changes){for(const [path,value] of Object.entries(changes))updatePath(this,path,value);}};
