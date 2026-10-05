@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DraftChanges} from '../module/draft.mjs';
 import {SkillDraft} from '../module/skill-draft.mjs';
-import {DoomPointsStore, clampDoomPoints, clampPosition, parseDoomPoints, registerDoomPointsSettings} from '../module/doom-points.mjs';
+import {DoomPointsHUD, DoomPointsStore, clampDoomPoints, clampPosition, parseDoomPoints, registerDoomPointsSettings} from '../module/doom-points.mjs';
 
 const updatePath = (object, path, value) => {
   const keys=path.split('.'), last=keys.pop();
@@ -72,6 +72,58 @@ test('Doom Points save errors leave the queue usable and never announce a failed
     await store.change(1000);
     assert.equal(value,1);assert.equal(announcements,1);
   } finally {game.user=previousUser;globalThis.ChatMessage=previousChat;}
+});
+
+test('untouched Doom Points input follows a remote update without writing back; edits and Escape behave correctly', async () => {
+  const previousWindow=globalThis.window;
+  const previousChat=globalThis.ChatMessage;
+  const previousUser=game.user;
+  let value=3, writes=0, announcements=0;
+  const listeners={};
+  const input={value:'3',dataset:{},select(){},addEventListener(type,callback){listeners[type]=callback;},blur(){this.lastBlur=listeners.blur();}};
+  game.user={isGM:true};
+  game.settings={get:()=>value,async set(namespace,key,next){writes++;value=next;}};
+  globalThis.ChatMessage={create:async()=>{announcements++;}};
+  globalThis.window={addEventListener(){}};
+  try {
+    const hud=new DoomPointsHUD();
+    hud.root={addEventListener(){}};
+    hud.dial={addEventListener(){}};
+    hud.valueElement=input;
+    hud.render=next=>{input.value=String(next);};
+    hud.bind();
+    listeners.focus();
+    value=4; // another client changes the shared setting while this input is focused
+    input.blur();
+    await input.lastBlur;
+    assert.equal(input.value,'4');
+    assert.equal(value,4);
+    assert.equal(writes,0);
+    assert.equal(announcements,0);
+
+    listeners.focus();
+    value=5;
+    listeners.keydown({key:'Enter',preventDefault(){}});
+    await input.lastBlur;
+    assert.equal(input.value,'5');
+    assert.equal(writes,0);
+
+    listeners.focus();
+    input.value='6';listeners.input();
+    input.blur();await input.lastBlur;
+    assert.equal(value,6);
+    assert.equal(writes,1);
+    assert.equal(announcements,1);
+
+    listeners.focus();
+    input.value='8';listeners.input();
+    value=7;
+    listeners.keydown({key:'Escape',preventDefault(){}});
+    await input.lastBlur;
+    assert.equal(input.value,'7');
+    assert.equal(value,7);
+    assert.equal(writes,1);
+  } finally {globalThis.window=previousWindow;globalThis.ChatMessage=previousChat;game.user=previousUser;}
 });
 
 test('an open Item follows untouched remote fields and only saves local changes', async () => {

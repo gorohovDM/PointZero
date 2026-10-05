@@ -121,22 +121,23 @@ export class DoomPointsHUD {
     });
     if (game.user?.isGM) {
       const input = this.valueElement;
-      input.addEventListener('focus', () => { this.editValue = input.value; input.select(); });
+      input.addEventListener('focus', () => { this.inputDirty = false; input.select(); });
+      input.addEventListener('input', () => { this.inputDirty = true; });
       input.addEventListener('beforeinput', event => {
         if (event.data && !/^\d+$/.test(event.data)) event.preventDefault();
       });
       input.addEventListener('keydown', event => {
         if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
-        if (event.key === 'Escape') { event.preventDefault(); input.value = this.editValue; input.dataset.cancelled = 'true'; input.blur(); }
+        if (event.key === 'Escape') { event.preventDefault(); this.inputDirty = false; input.blur(); }
       });
       input.addEventListener('blur', async () => {
-        const cancelled = input.dataset.cancelled === 'true';
-        delete input.dataset.cancelled;
+        const changed = this.inputDirty;
+        this.inputDirty = false;
         const value = parseDoomPoints(input.value);
-        if (!cancelled && value !== null) {
+        if (changed && value !== null) {
           try { await this.store.change(value); }
           catch (error) { this.reportSaveError(error); }
-        } else if (!cancelled) ui.notifications.warn('Введите от 1 до 3 цифр для Doom Points.');
+        } else if (changed) ui.notifications.warn('Введите от 1 до 3 цифр для Doom Points.');
         this.render(this.store.value);
       });
     }
