@@ -45,18 +45,7 @@ export class DoomPointsStore {
       if (!Number.isInteger(requested) || requested < 0 || requested > 999 || requested === previous) return false;
       await game.settings.set(SYSTEM, VALUE_KEY, requested);
       const actual = this.value;
-      if (actual === previous) return false;
-      const delta = actual - previous;
-      try {
-        await ChatMessage.create({
-          content: `<p><strong>Doom Points:</strong> ${delta > 0 ? '+' : ''}${delta}; текущий запас: ${actual}.</p>`,
-          speaker: {alias: 'Point Zero'}
-        });
-      } catch (error) {
-        console.error('Point Zero: не удалось отправить изменение Doom Points в чат', error);
-        ui.notifications.error('Doom Points изменены, но сообщение в чат не отправлено.');
-      }
-      return true;
+      return actual !== previous;
     });
     this.#queue = operation.catch(() => {});
     return operation;
