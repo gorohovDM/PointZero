@@ -60,7 +60,6 @@ jobs:
             git switch -c test-channel --track origin/test-channel
           else
             git switch --orphan test-channel
-            git rm -rf --quiet .
           fi
           cp dist/system.json system.json
           cp dist/build.json build.json

@@ -14,7 +14,7 @@
 
 ## Установка и обновление
 
-Адрес манифеста: `https://raw.githubusercontent.com/gorohovDM/PointZero/main/system.json`. 
+Адрес манифеста: `https://raw.githubusercontent.com/gorohovDM/PointZero/main/system.json`.
 
 Для проверки изменений в локальном Foundry есть отдельный тестовый канал: `https://raw.githubusercontent.com/gorohovDM/PointZero/test-channel/system.json`. Установите систему по этому адресу один раз, затем обновляйте её через Foundry. Ветка `test` собирается после интеграции актуальных `main` и проверенного `codex/dev`; каждый push запускает регрессионные тесты и создаёт отдельный GitHub prerelease. Постоянный манифест в служебной ветке `test-channel` обновляется только после успешной публикации архива. Исходный `system.json` сохраняет стабильные ссылки.
 
