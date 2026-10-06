@@ -4,6 +4,7 @@
     <button type="button" class="pz-item-delete" data-delete-item="{{id}}" aria-label="Удалить {{name}}" title="Удалить">×</button>
   </div>{{/if}}
   <h3><button type="button" class="pz-item-open" data-open-item="{{id}}" title="Открыть Item">{{name}}</button></h3>
+  {{#if canCast}}<button type="button" class="pz-cast-spell" data-cast-spell="{{id}}">Произнести</button>{{/if}}
   {{#if flags}}<div class="pz-spell-flags">{{#each flags}}<span class="pz-spell-flag">{{this}}</span>{{/each}}</div>{{/if}}
   <dl class="pz-item-facts">{{#each facts}}<div class="pz-item-fact"><dt>{{label}}</dt><dd>{{value}}</dd></div>{{/each}}</dl>
   {{#if description}}<div class="pz-item-description">{{description}}</div>{{/if}}

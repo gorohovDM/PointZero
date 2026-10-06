@@ -1,5 +1,7 @@
 import {migrateLegacyItems} from './migration.mjs';
 import {STANDARD_SKILLS} from './data-models.mjs';
+import {DraftChanges} from './draft.mjs';
+import {castSpell} from './magic.mjs';
 
 const ATTRIBUTES = [['strength', 'Сила'], ['agility', 'Ловкость'], ['mind', 'Разум'], ['empathy', 'Эмпатия']];
 const SKILLS = STANDARD_SKILLS;
@@ -72,6 +74,7 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
   _onClose(options) {
     clearTimeout(this.saveTimer);
     this.localState = null;
+    this.draft = null;
     this.changed = false;
     this.activePath = null;
     this.activeSelection = null;
@@ -89,17 +92,18 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
     if (configureToken) configureToken.hidden = !this.isEditable || Boolean(actor.isToken);
     const current=()=>({name:actor.name,...mergeState(actor.system.sheet)});
     this.changed ??= false;
-    let state = this.localState ??= current(), dragIndex = null, draggedItemId = null;
+    this.draft ??= new DraftChanges(current());
+    let state = this.localState = this.draft.rebase(current()), dragIndex = null, draggedItemId = null;
     clearTimeout(this.saveTimer);
     const content = root.querySelector('#pz-content');
     const setting = key => game.settings.get('point-zero', key);
     const get = path => path.split('.').reduce((obj, key) => obj?.[key], state);
     const set = (path, value) => {
-      const keys=path.split('.'), last=keys.pop();
-      keys.reduce((part,key)=>part[key]??={},state)[last]=value;
-      this.changed=true;
+      if(/^(header\.experience|general\.age|attributes\.[^.]+\.(current|max)|trackers\.[^.]+)$/.test(path))value=Number(value);
+      this.draft.change(path,value);
+      this.changed=Boolean(this.draft.dirty.size);
     };
-    const setSkills = skills => {state.skills=skills;this.changed=true;};
+    const setSkills = skills => set('skills',skills);
     const trackerData = (title,name,total,columns=total,module=false) => {
       const value=name==='experience'?state.header.experience:state.trackers[name];
       return {title,name,total,columns,module,cells:Array.from({length:total},(_,index)=>({index,number:index+1,on:index<value}))};
@@ -111,9 +115,9 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       if(type==='weapon')facts.push(fact('Урон',s.damage),fact('Бонус',s.bonus),fact('Дистанция',s.range),fact('Прочность',s.durability));
       if(type==='armor')facts.push(fact('Защита',s.protection),fact('Штраф',s.penalty));
       if(type==='equipment')facts.push(fact('Бонус',s.bonus));
-      if(type==='spell')facts.push(fact('Ранг',s.rank),fact('Длительность',s.duration),fact('Дистанция',s.range),fact('Ингредиенты',s.ingredients));
-      return {id:item.id,type,name:item.name,canEdit:this.isEditable,description:s.description,facts,
-        flags:type==='spell'?[['ritual','Ритуал'],['wordOfPower','Слово силы'],['willCost','Затраты воли']].filter(([key])=>s[key]).map(([,label])=>label):[]};
+      if(type==='spell')facts.push(fact('Школа магии',s.schoolId),fact('Ранг',s.rank),fact('Длительность',s.duration),fact('Дистанция',s.range),fact('Ингредиенты',s.ingredients));
+      return {id:item.id,type,name:item.name,canEdit:this.isEditable,canCast:type==='spell'&&this.isEditable&&actor.isOwner,description:s.description,facts,
+        flags:type==='spell'?[['ritual','Ритуал'],['wordOfPower','Слово силы'],['noWillCost','Не требует трат воли']].filter(([key])=>s[key]).map(([,label])=>label):[]};
     })});
     function render() {
       if (!setting('magic') && this.activeTab==='magic') this.activeTab='main';
@@ -141,10 +145,15 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       clearTimeout(this.saveTimer);
       if(root.isConnected&&this.isEditable)captureHeights();
       if(!this.changed)return;
-      const {name,...sheet}=clone(state);
+      if(state.name==='')set('name',actor.name);
       try {
-        await actor.update({name:name||actor.name,'system.sheet':sheet});
-        this.changed=false;
+        // Serialize saves; dirty paths preserve edits made while an update is in flight.
+        const previous=this.savePromise ?? Promise.resolve();
+        const draft=this.draft;
+        const pending=previous.catch(()=>{}).then(()=>draft.flush(actor,path=>path==='name'?'name':`system.sheet.${path}`,current));
+        this.savePromise=pending;
+        await pending;
+        this.changed=Boolean(draft.dirty.size);
       } catch(error) {
         console.error('Point Zero: save failed',error);
         ui.notifications.error('Не удалось сохранить лист');
@@ -165,7 +174,7 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
     }
     root.addEventListener('input', event=>{
       const el=event.target;
-      if(!this.isEditable||!el.dataset.path)return;
+      if(!this.isEditable||this.magicCommitting||!el.dataset.path)return;
 
       if(el.dataset.path==='header.name'){set('name',el.value);return;}
       const value=clean(el);
@@ -176,7 +185,7 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
     });
     root.addEventListener('change',event=>{
       const el=event.target;
-      if(this.isEditable&&el.dataset.path){if(el.dataset.path==='header.name'){set('name',el.value);}else if(el.dataset.path.startsWith('skills.')){const keys=el.dataset.path.split('.');state.skills[Number(keys[1])][keys[2]]=clean(el);setSkills(state.skills);}else set(el.dataset.path,el.type==='checkbox'?el.checked:clean(el));scheduleSave();}
+      if(this.isEditable&&!this.magicCommitting&&el.dataset.path){if(el.dataset.path==='header.name'){set('name',el.value);}else if(el.dataset.path.startsWith('skills.')){const keys=el.dataset.path.split('.');state.skills[Number(keys[1])][keys[2]]=clean(el);setSkills(state.skills);}else set(el.dataset.path,el.type==='checkbox'?el.checked:clean(el));scheduleSave();}
     });
     const rememberFocus=el=>{if(!el.dataset.path)return;this.activePath=el.dataset.path;this.activeSelection=typeof el.selectionStart==='number'?[el.selectionStart,el.selectionEnd]:null;};
     root.addEventListener('focusin',event=>rememberFocus(event.target));
@@ -188,6 +197,18 @@ export class PointZeroCharacterSheet extends foundry.applications.api.Handlebars
       if(this.isEditable&&el.matches('textarea[data-height]')){scheduleSave();}
     });
     root.addEventListener('click',async event=>{
+      const cast=event.target.closest('[data-cast-spell]');
+      if(cast){
+        try {
+          await castSpell(actor,cast.dataset.castSpell,{
+            canEdit:()=>this.isEditable,flush:()=>this.flushChanges?.(),
+            beginCommit:()=>{this.magicCommitting=true;},
+            endCommit:()=>{this.magicCommitting=false;this.draft?.rebase(current());if(root.isConnected)render.call(this);}
+          });
+        } catch(error) {console.error('Point Zero: magic failed',error);ui.notifications.error(error.message);}
+        return;
+      }
+      if(this.magicCommitting)return;
       if(event.target.closest('[data-edit-portrait]')){
         if(!this.isEditable)return;
         new foundry.applications.apps.FilePicker.implementation({

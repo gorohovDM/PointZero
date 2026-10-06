@@ -347,6 +347,93 @@ test('Item view retains a local edit across rerenders', async () => {
   assert.equal(context.pz.fields.find(field=>field.key==='damage').value,'2');
 });
 
+test('old spell willCost is preserved but only the new noWillCost flag is editable and defaults to paid', async () => {
+  assert.equal(PointZeroItemData.defineSchema().noWillCost.args[0].initial,false);
+  for(const willCost of [true,false]) {
+    const item={type:'spell',name:'Old',system:{rank:'1',schoolId:'fire',willCost},async update(changes){Object.assign(this.system,changes.system);}};
+    const sheet=new PointZeroItemSheet();sheet.item=item;sheet.isEditable=true;
+    const listeners={},root={addEventListener(type,cb){listeners[type]=cb;},querySelector(){return null;}};
+    sheet.mount(root);
+    const context=await sheet._prepareContext({});
+    assert.equal(context.pz.flags.some(flag=>flag.key==='willCost'),false);
+    assert.equal(context.pz.flags.find(flag=>flag.key==='noWillCost').value,false);
+    listeners.input({target:{type:'checkbox',checked:true,dataset:{key:'noWillCost'}}});
+    await sheet.flushChanges();
+    assert.equal(item.system.willCost,willCost);assert.equal(item.system.noWillCost,true);
+  }
+});
+
+test('spell casting flushes character draft and later autosave cannot restore spent will', async () => {
+  game.settings={get:()=>true};
+  const makeRoot=()=>{
+    const listeners={},tabs=[{dataset:{tab:'main'},classList:{toggle(){}},setAttribute(){}},{dataset:{tab:'magic'},classList:{toggle(){}},setAttribute(){}}];
+    const name={value:''},role={value:''},experience={innerHTML:''},content={innerHTML:'',querySelectorAll:()=>[],querySelector:()=>null};
+    return {listeners,isConnected:true,addEventListener(type,cb){listeners[type]=cb;},querySelector(selector){return {'[data-path="header.name"]':name,'[data-path="header.role"]':role,'#pz-experience':experience,'[data-tab="magic"]':tabs[1],'#pz-content':content}[selector];},querySelectorAll(selector){return selector==='[data-tab]'?tabs:[];}};
+  };
+  const items=[{id:'spell',type:'spell',name:'Flame',sort:0,system:{rank:'1',schoolId:'fire'}},{id:'talent',type:'talent',name:'Fire',sort:0,system:{level:'3',linkId:'fire'}}];
+  items.get=id=>items.find(item=>item.id===id);
+  const updates=[],messages=[];
+  const actor={name:'Mage',isOwner:true,items,system:{sheet:{trackers:{willpower:5}}},async update(changes){updates.push(changes);for(const [path,value] of Object.entries(changes))updatePath(this,path,value);if(sheet.magicCommitting)root.listeners.input({target:{dataset:{path:'trackers.willpower'},value:'22'}});sheet.mount(makeRoot());return this;}};
+  const sheet=new PointZeroCharacterSheet();sheet.actor=actor;sheet.isEditable=true;let view;
+  sheet.pageTemplate=data=>{view=data;return '';};const root=makeRoot();sheet.mount(root);
+  const previousDialog=foundry.applications.api.DialogV2,previousChat=globalThis.ChatMessage;
+  foundry.applications.api.DialogV2={input:async()=>{
+    root.listeners.input({target:{dataset:{path:'notes.text'},value:'Edited while dialog open'}});
+    root.listeners.input({target:{dataset:{path:'trackers.willpower'},value:'6'}});
+    return {will:2,safe:true};
+  }};
+  globalThis.ChatMessage={getSpeaker:()=>({actor:'mage'}),applyMode:data=>data,create:async data=>{messages.push(data);return data;}};
+  try {
+    assert.equal(view.spell.items[0].canCast,true);
+    root.listeners.input({target:{dataset:{path:'notes.text'},value:'Unsaved notes'}});
+    root.listeners.input({target:{dataset:{path:'header.name'},value:'Renamed mage'}});
+    root.listeners.input({target:{dataset:{path:'header.experience'},value:'3'}});
+    root.listeners.input({target:{dataset:{path:'attributes.strength.max'},value:'2'}});
+    root.listeners.input({target:{dataset:{path:'attributes.strength.current'},value:'2'}});
+    root.listeners.input({target:{dataset:{path:'skills.0.level'},value:'3'}});
+    await root.listeners.click({target:{closest:selector=>selector==='[data-cast-spell]'?{dataset:{castSpell:'spell'}}:null}});
+    assert.equal(actor.name,'Renamed mage');assert.equal(actor.system.sheet.header.experience,3);
+    assert.deepEqual(actor.system.sheet.attributes.strength,{max:2,current:2});assert.equal(actor.system.sheet.skills[0].level,'3');
+    assert.equal(actor.system.sheet.trackers.willpower,4);assert.equal(actor.system.sheet.notes.text,'Edited while dialog open');
+    assert.equal(sheet.localState.trackers.willpower,4);assert.equal(messages.length,1);
+    assert.deepEqual(updates[2],{'system.sheet.trackers.willpower':4});
+    const later=makeRoot();sheet.mount(later);
+    later.listeners.input({target:{dataset:{path:'header.role'},value:'Mage role'}});
+    await sheet.flushChanges();
+    assert.equal(actor.system.sheet.trackers.willpower,4);assert.deepEqual(updates[3],{'system.sheet.header.role':'Mage role'});
+    sheet.isEditable=false;sheet.mount(makeRoot());assert.equal(view.spell.items[0].canCast,false);
+  } finally {foundry.applications.api.DialogV2=previousDialog;globalThis.ChatMessage=previousChat;}
+});
+
+test('character saves serialize and preserve newer local edits plus untouched remote fields', async () => {
+  game.settings={get:()=>false};
+  const makeRoot=()=>{
+    const listeners={},tabs=[{dataset:{tab:'main'},classList:{toggle(){}},setAttribute(){}},{dataset:{tab:'magic'},classList:{toggle(){}},setAttribute(){}}];
+    const fields={'[data-path="header.name"]':{value:''},'[data-path="header.role"]':{value:''},'#pz-experience':{innerHTML:''},'[data-tab="magic"]':tabs[1],'#pz-content':{innerHTML:'',querySelectorAll:()=>[]}};
+    return {listeners,isConnected:true,addEventListener(type,cb){listeners[type]=cb;},querySelector:selector=>fields[selector],querySelectorAll:selector=>selector==='[data-tab]'?tabs:[]};
+  };
+  let release,active=0,maxActive=0,writes=0;
+  const actor={name:'Mage',system:{sheet:{notes:{text:'Old'},trackers:{willpower:5}}},items:{filter:()=>[]},async update(changes){
+    active++;maxActive=Math.max(active,maxActive);writes++;
+    if(writes===1)await new Promise(resolve=>{release=resolve;});
+    for(const [path,value] of Object.entries(changes))updatePath(this,path,value);
+    active--;return this;
+  }};
+  const sheet=new PointZeroCharacterSheet();sheet.actor=actor;sheet.isEditable=true;sheet.pageTemplate=()=>'';
+  const root=makeRoot();sheet.mount(root);
+  root.listeners.input({target:{dataset:{path:'notes.text'},value:'First'}});
+  const first=sheet.flushChanges();
+  while(!release)await Promise.resolve();
+  root.listeners.input({target:{dataset:{path:'notes.text'},value:'Later'}});
+  root.listeners.input({target:{dataset:{path:'header.role'},value:'Agent'}});
+  actor.system.sheet.trackers.willpower=3;
+  sheet.mount(makeRoot());
+  assert.equal(sheet.localState.notes.text,'Later');assert.equal(sheet.localState.trackers.willpower,3);
+  const second=sheet.flushChanges();release();await Promise.all([first,second]);
+  assert.equal(maxActive,1);assert.equal(writes,2);assert.equal(sheet.changed,false);
+  assert.equal(actor.system.sheet.notes.text,'Later');assert.equal(actor.system.sheet.header.role,'Agent');assert.equal(actor.system.sheet.trackers.willpower,3);
+});
+
 test('Item rerender re-arms pending autosave', async () => {
   let saves=0;
   const item={type:'weapon',name:'Item',system:{damage:'1'},async update(changes){saves++;for(const [path,value] of Object.entries(changes))updatePath(this,path,value);return this;}};
@@ -531,3 +618,6 @@ test('character portrait and prototype token use Foundry Actor fields and contro
     assert.equal(edit.hidden,true);assert.equal(tokenButton.hidden,true);
   } finally {foundry.applications.apps=originalPicker;globalThis.CONFIG=originalConfig;}
 });
+
+// Keep magic checks in the existing CI entrypoint as well as available on their own.
+await import('./magic.test.mjs');

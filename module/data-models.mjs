@@ -75,6 +75,8 @@ export class PointZeroItemData extends foundry.abstract.TypeDataModel {
       durability: string(), protection: string(), penalty: string(), rank: string(),
       duration: string(), ingredients: string(), ritual: new fields.BooleanField({initial:false}),
       wordOfPower: new fields.BooleanField({initial:false}), willCost: new fields.BooleanField({initial:false}),
+      // The legacy flag has the opposite meaning; old spells remain paid regardless of its value.
+      noWillCost: new fields.BooleanField({initial:false}),
       description: string(), descriptionHeight: number(2000,88)
     };
   }

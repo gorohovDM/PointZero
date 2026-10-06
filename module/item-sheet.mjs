@@ -6,7 +6,7 @@ const FIELDS = {
   spell: [['schoolId','Школа магии',64,'identifier'],['rank','Ранг',3,'digits'],['duration','Длительность',8],['range','Дистанция',15],['ingredients','Ингредиенты',80]]
 };
 const TITLES = {talent:'Талант',weapon:'Оружие',armor:'Броня',equipment:'Снаряжение',spell:'Заклинание'};
-const FLAG_FIELDS = [['ritual','Ритуал'],['wordOfPower','Слово силы'],['willCost','Затраты воли']];
+const FLAG_FIELDS = [['ritual','Ритуал'],['wordOfPower','Слово силы'],['noWillCost','Не требует трат воли']];
 
 export class PointZeroItemSheet extends foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.sheets.ItemSheetV2) {
   static DEFAULT_OPTIONS = {classes:['point-zero-window','point-zero-item-window'], position:{width:560,height:620}, window:{resizable:true}};
@@ -17,7 +17,7 @@ export class PointZeroItemSheet extends foundry.applications.api.HandlebarsAppli
     return {name:item.name,system:Object.fromEntries([
       ...(FIELDS[item.type]||[]).map(([key])=>key),
       ...(item.type==='talent'?['linkId']:[]),
-      'description','descriptionHeight','ritual','wordOfPower','willCost'
+      'description','descriptionHeight','ritual','wordOfPower','willCost','noWillCost'
     ].map(key=>[key,item.system[key]]))};
   }
   async _prepareContext(options) {
