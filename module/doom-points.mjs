@@ -83,7 +83,7 @@ export class DoomPointsHUD {
       if (this.valueElement instanceof HTMLInputElement) this.valueElement.value = String(current);
       else this.valueElement.textContent = String(current);
     }
-    this.root.querySelectorAll('.doom-dial__tick').forEach((tick, index) => tick.classList.toggle('is-lit', index < Math.min(current, 12)));
+    this.root.querySelectorAll('.doom-dial__tick').forEach((tick, index) => tick.classList.toggle('is-lit', (index || 12) <= current));
     this.root.querySelector('.doom-dial').classList.toggle('is-max', current >= 12);
     for (const button of this.root.querySelectorAll('[data-step]')) {
       button.disabled = !game.user?.isGM || (button.dataset.step === '-1' ? current === 0 : current === 999);
