@@ -1,0 +1,38 @@
+{
+  "id": "point-zero",
+  "title": "Point Zero",
+  "description": "Система Year Zero Engine для Foundry VTT 14.",
+  "version": "0.2.7.1.1",
+  "authors": [
+    {
+      "name": "gorohovDM",
+      "url": "https://github.com/gorohovDM"
+    }
+  ],
+  "url": "https://github.com/gorohovDM/PointZero",
+  "manifest": "https://raw.githubusercontent.com/gorohovDM/PointZero/test-channel/system.json",
+  "download": "https://github.com/gorohovDM/PointZero/releases/download/test-1-1/point-zero.zip",
+  "compatibility": {
+    "minimum": 14,
+    "verified": 14
+  },
+  "esmodules": [
+    "point-zero.mjs"
+  ],
+  "styles": [
+    "styles/point-zero.css"
+  ],
+  "documentTypes": {
+    "Actor": {
+      "character": {}
+    },
+    "Item": {
+      "talent": {},
+      "weapon": {},
+      "armor": {},
+      "equipment": {},
+      "spell": {}
+    }
+  },
+  "primaryTokenAttribute": "sheet.trackers.health"
+}
