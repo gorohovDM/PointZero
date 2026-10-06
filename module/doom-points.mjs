@@ -62,11 +62,11 @@ export class DoomPointsHUD {
     const root = document.createElement('div');
     root.className = `pz-doom-hud${game.user?.isGM ? ' is-gm' : ''}`;
     root.setAttribute('aria-label', 'Doom Points');
-    root.innerHTML = `<button type="button" class="pz-doom-control" data-step="-1" aria-label="Уменьшить Doom Points">−</button>
+    root.innerHTML = `<button type="button" class="pz-doom-control" data-step="-1" aria-label="Уменьшить Doom Points"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12" /></svg></button>
       <div class="pz-doom-dial" tabindex="0" aria-label="Переместить счётчик Doom Points">${svg}
         ${game.user?.isGM ? '<input class="pz-doom-value" type="text" inputmode="numeric" maxlength="3" pattern="[0-9]{1,3}" aria-label="Текущий запас Doom Points">' : '<span class="pz-doom-value" aria-live="polite"></span>'}
       </div>
-      <button type="button" class="pz-doom-control" data-step="1" aria-label="Увеличить Doom Points">+</button>`;
+      <button type="button" class="pz-doom-control" data-step="1" aria-label="Увеличить Doom Points"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M10 4v12" /></svg></button>`;
     document.body.append(root);
     this.root = root;
     this.valueElement = root.querySelector('.pz-doom-value');
