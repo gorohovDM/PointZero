@@ -15,5 +15,12 @@
     </fieldset>
     {{/if}}
     <label class="pz-field pz-area">Описание<textarea data-key="description" style="height:{{pz.descriptionHeight}}px" {{#unless pz.canEdit}}disabled{{/unless}}>{{pz.description}}</textarea></label>
+    {{#if pz.talent}}
+    <details class="pz-item-sheet-advanced">
+      <summary>Дополнительно</summary>
+      <label class="pz-field">ID для связи<input data-key="linkId" data-kind="identifier" maxlength="64" value="{{pz.linkId}}" placeholder="fire_magic" autocomplete="off" {{#unless pz.canEdit}}disabled{{/unless}}></label>
+      <p>Латинские буквы, цифры, _ и -. Этот ID указывается в поле «Школа магии» заклинания.</p>
+    </details>
+    {{/if}}
   </main>
 </div>

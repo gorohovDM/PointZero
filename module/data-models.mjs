@@ -71,7 +71,7 @@ export class PointZeroCharacterData extends foundry.abstract.TypeDataModel {
 export class PointZeroItemData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     return {
-      level: string(), damage: string(), bonus: string(), range: string(),
+      level: string(), linkId: string(), schoolId: string(), damage: string(), bonus: string(), range: string(),
       durability: string(), protection: string(), penalty: string(), rank: string(),
       duration: string(), ingredients: string(), ritual: new fields.BooleanField({initial:false}),
       wordOfPower: new fields.BooleanField({initial:false}), willCost: new fields.BooleanField({initial:false}),

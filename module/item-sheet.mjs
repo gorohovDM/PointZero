@@ -3,7 +3,7 @@ const FIELDS = {
   weapon: [['damage','Урон',7],['bonus','Бонус',3,'signed'],['range','Дистанция',7,'range'],['durability','Прочность',3,'digits']],
   armor: [['protection','Уровень защиты',7],['penalty','Штраф',3,'signed']],
   equipment: [['bonus','Бонус',5]],
-  spell: [['rank','Ранг',3,'digits'],['duration','Длительность',8],['range','Дистанция',7,'range'],['ingredients','Ингредиенты',80]]
+  spell: [['schoolId','Школа магии',64,'identifier'],['rank','Ранг',3,'digits'],['duration','Длительность',8],['range','Дистанция',15],['ingredients','Ингредиенты',80]]
 };
 const TITLES = {talent:'Талант',weapon:'Оружие',armor:'Броня',equipment:'Снаряжение',spell:'Заклинание'};
 const FLAG_FIELDS = [['ritual','Ритуал'],['wordOfPower','Слово силы'],['willCost','Затраты воли']];
@@ -16,6 +16,7 @@ export class PointZeroItemSheet extends foundry.applications.api.HandlebarsAppli
     const item=this.item;
     return {name:item.name,system:Object.fromEntries([
       ...(FIELDS[item.type]||[]).map(([key])=>key),
+      ...(item.type==='talent'?['linkId']:[]),
       'description','descriptionHeight','ritual','wordOfPower','willCost'
     ].map(key=>[key,item.system[key]]))};
   }
@@ -24,7 +25,8 @@ export class PointZeroItemSheet extends foundry.applications.api.HandlebarsAppli
     const state=this.localState ??= this.current(), item=this.item;
     return {...context,pz:{
       title:this.title,name:state.name,nameLimit:item.type==='weapon'||item.type==='armor'?200:80,canEdit:this.isEditable,
-      fields:(FIELDS[item.type]||[]).map(([key,label,max,kind=''])=>({key,label,max,kind,numeric:Boolean(kind),value:state.system[key]??''})),
+      fields:(FIELDS[item.type]||[]).map(([key,label,max,kind=''])=>({key,label,max,kind,numeric:['digits','signed','range'].includes(kind),value:state.system[key]??''})),
+      talent:item.type==='talent',linkId:state.system.linkId??'',
       spell:item.type==='spell',flags:FLAG_FIELDS.map(([key,label])=>({key,label,value:Boolean(state.system[key])})),
       description:state.system.description??'',descriptionHeight:Math.max(54,Number(state.system.descriptionHeight)||88)
     }};
@@ -58,6 +60,8 @@ export class PointZeroItemSheet extends foundry.applications.api.HandlebarsAppli
       if(el.dataset.kind==='digits') value=value.replace(/\D/g,'');
       if(el.dataset.kind==='signed') value=(value.startsWith('-')?'-':'')+value.replace(/\D/g,'');
       if(el.dataset.kind==='range') value=value.replace(/[^\d/\\]/g,'');
+      if(el.dataset.kind==='identifier') value=value.replace(/[^A-Za-z0-9_-]/g,'');
+      if(el.maxLength>0) value=value.slice(0,el.maxLength);
       el.value=value;
       return value;
     };

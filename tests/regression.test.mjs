@@ -300,7 +300,42 @@ globalThis.ui={notifications:{warn(){},error(){}}};
 const {PointZeroItemSheet}=await import('../module/item-sheet.mjs');
 const {PointZeroCharacterSheet}=await import('../module/character-sheet.mjs');
 const {migrateLegacyItems}=await import('../module/migration.mjs');
-const {PointZeroCharacterData}=await import('../module/data-models.mjs');
+const {PointZeroCharacterData,PointZeroItemData}=await import('../module/data-models.mjs');
+
+test('magic link IDs and spell distance survive draft rerenders and saving', async () => {
+  for (const [type,key] of [['talent','linkId'],['spell','schoolId']]) {
+    const item={type,name:'Old',system:{description:'Keep',range:'12345678901234567890'},async update(changes){this.name=changes.name;Object.assign(this.system,changes.system);}};
+    const sheet=new PointZeroItemSheet();sheet.item=item;sheet.isEditable=true;
+    const listeners={};const root={addEventListener(type,listener){listeners[type]=listener;},querySelector(){return null;}};
+    sheet.mount(root);
+    const input={dataset:{key,kind:'identifier'},type:'text',value:'Fire_магия-magic!'+ 'a'.repeat(80),maxLength:64};
+    listeners.input({target:input});
+    assert.equal(input.value,'Fire_-magic'+ 'a'.repeat(53));
+    const context=await sheet._prepareContext({});
+    if(type==='talent')assert.equal(context.pz.linkId,input.value);
+    else {
+      assert.equal(context.pz.fields[0].key,'schoolId');
+      assert.equal(context.pz.fields[0].numeric,false);
+      const distance=context.pz.fields.find(field=>field.key==='range');
+      assert.equal(distance.kind,'');assert.equal(distance.max,15);
+      // Opening an old document does not truncate its existing distance.
+      assert.equal(distance.value,'12345678901234567890');
+      listeners.input({target:{dataset:{key:'range',kind:''},type:'text',value:'На себя / касание',maxLength:15}});
+    }
+    await sheet.flushChanges();
+    assert.equal(item.system[key],input.value);assert.equal(item.system.description,'Keep');
+    assert.equal(item.system.range,type==='spell'?'На себя / касание'.slice(0,15):'12345678901234567890');
+    sheet.isEditable=false;
+    listeners.input({target:{...input,value:'changed'}});
+    await sheet.flushChanges();assert.equal(item.system[key],input.value);
+  }
+  const schema=PointZeroItemData.defineSchema();
+  assert.equal(schema.linkId.args[0].initial,'');assert.equal(schema.schoolId.args[0].initial,'');
+  const sheet=new PointZeroItemSheet();sheet.item={type:'weapon',name:'Weapon',system:{}};
+  const context=await sheet._prepareContext({});
+  assert.equal(context.pz.fields.find(field=>field.key==='range').kind,'range');
+  assert.equal(context.pz.fields.find(field=>field.key==='range').max,7);
+});
 
 test('Item view retains a local edit across rerenders', async () => {
   const item={type:'weapon',name:'Old',system:{damage:'1',bonus:'0'}};
