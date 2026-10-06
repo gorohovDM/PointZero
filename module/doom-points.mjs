@@ -45,18 +45,7 @@ export class DoomPointsStore {
       if (!Number.isInteger(requested) || requested < 0 || requested > 999 || requested === previous) return false;
       await game.settings.set(SYSTEM, VALUE_KEY, requested);
       const actual = this.value;
-      if (actual === previous) return false;
-      const delta = actual - previous;
-      try {
-        await ChatMessage.create({
-          content: `<p><strong>Doom Points:</strong> ${delta > 0 ? '+' : ''}${delta}; текущий запас: ${actual}.</p>`,
-          speaker: {alias: 'Point Zero'}
-        });
-      } catch (error) {
-        console.error('Point Zero: не удалось отправить изменение Doom Points в чат', error);
-        ui.notifications.error('Doom Points изменены, но сообщение в чат не отправлено.');
-      }
-      return true;
+      return actual !== previous;
     });
     this.#queue = operation.catch(() => {});
     return operation;
@@ -73,11 +62,11 @@ export class DoomPointsHUD {
     const root = document.createElement('div');
     root.className = `pz-doom-hud${game.user?.isGM ? ' is-gm' : ''}`;
     root.setAttribute('aria-label', 'Doom Points');
-    root.innerHTML = `<button type="button" class="pz-doom-control" data-step="-1" aria-label="Уменьшить Doom Points">−</button>
+    root.innerHTML = `<button type="button" class="pz-doom-control" data-step="-1" aria-label="Уменьшить Doom Points"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12" /></svg></button>
       <div class="pz-doom-dial" tabindex="0" aria-label="Переместить счётчик Doom Points">${svg}
         ${game.user?.isGM ? '<input class="pz-doom-value" type="text" inputmode="numeric" maxlength="3" pattern="[0-9]{1,3}" aria-label="Текущий запас Doom Points">' : '<span class="pz-doom-value" aria-live="polite"></span>'}
       </div>
-      <button type="button" class="pz-doom-control" data-step="1" aria-label="Увеличить Doom Points">+</button>`;
+      <button type="button" class="pz-doom-control" data-step="1" aria-label="Увеличить Doom Points"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M10 4v12" /></svg></button>`;
     document.body.append(root);
     this.root = root;
     this.valueElement = root.querySelector('.pz-doom-value');
@@ -94,7 +83,7 @@ export class DoomPointsHUD {
       if (this.valueElement instanceof HTMLInputElement) this.valueElement.value = String(current);
       else this.valueElement.textContent = String(current);
     }
-    this.root.querySelectorAll('.doom-dial__tick').forEach((tick, index) => tick.classList.toggle('is-lit', index < Math.min(current, 12)));
+    this.root.querySelectorAll('.doom-dial__tick').forEach((tick, index) => tick.classList.toggle('is-lit', (index || 12) <= current));
     this.root.querySelector('.doom-dial').classList.toggle('is-max', current >= 12);
     for (const button of this.root.querySelectorAll('[data-step]')) {
       button.disabled = !game.user?.isGM || (button.dataset.step === '-1' ? current === 0 : current === 999);

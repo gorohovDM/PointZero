@@ -133,10 +133,12 @@ html.theme-light .pz-doom-hud,[data-theme="light"] .pz-doom-hud{
 }
 .pz-doom-hud input.pz-doom-value{cursor:text;user-select:text;min-width:0;min-height:0;border-radius:5px}
 .pz-doom-hud .pz-doom-control{
-  width:36px;height:36px;display:grid;place-items:center;padding:0;border:1px solid var(--doom-rim);border-radius:50%;
-  background:var(--doom-core);color:var(--doom-lit);font:700 25px/1 Inter,Segoe UI,Arial,sans-serif;
+  box-sizing:border-box;width:36px;height:36px;min-width:36px;min-height:36px;max-width:36px;max-height:36px;
+  margin:0;align-self:center;justify-self:center;display:grid;place-items:center;padding:0;border:1px solid var(--doom-rim);border-radius:50%;
+  background:var(--doom-core);color:var(--doom-lit);
   opacity:0;visibility:hidden;pointer-events:none;transition:opacity 160ms ease,background 160ms ease;cursor:pointer;
 }
+.pz-doom-hud .pz-doom-control svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
 .pz-doom-hud.is-gm:is(:hover,:focus-within) .pz-doom-control{opacity:1;visibility:visible;pointer-events:auto}
 .pz-doom-hud .pz-doom-control:hover{background:var(--doom-core-max)}
 .pz-doom-hud .pz-doom-control:disabled{opacity:.45;cursor:default}
