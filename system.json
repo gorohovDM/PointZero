@@ -2,7 +2,7 @@
   "id": "point-zero",
   "title": "Point Zero",
   "description": "Система Year Zero Engine для Foundry VTT 14.",
-  "version": "0.2.7.4.1",
+  "version": "0.2.7.5.1",
   "authors": [
     {
       "name": "gorohovDM",
@@ -11,7 +11,7 @@
   ],
   "url": "https://github.com/gorohovDM/PointZero",
   "manifest": "https://raw.githubusercontent.com/gorohovDM/PointZero/test-channel/system.json",
-  "download": "https://github.com/gorohovDM/PointZero/releases/download/test-4-1/point-zero.zip",
+  "download": "https://github.com/gorohovDM/PointZero/releases/download/test-5-1/point-zero.zip",
   "compatibility": {
     "minimum": 14,
     "verified": 14
