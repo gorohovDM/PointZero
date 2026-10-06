@@ -11,7 +11,7 @@
   ],
   "url": "https://github.com/gorohovDM/PointZero",
   "manifest": "https://raw.githubusercontent.com/gorohovDM/PointZero/main/system.json",
-  "download": "https://github.com/gorohovDM/PointZero/releases/download/v0.2.7/point-zero.zip",
+  "download": "https://github.com/gorohovDM/PointZero/releases/download/v0.2.8/point-zero.zip",
   "compatibility": {
     "minimum": 14,
     "verified": 14
