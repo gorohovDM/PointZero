@@ -23,17 +23,17 @@ test('Doom Points settings and number boundaries', () => {
   assert.deepEqual(clampPosition({x:900,y:-5},{width:300,height:200},{width:216,height:136}),{x:84,y:0});
 });
 
-test('Doom Points changes serialize, use latest remote value, and announce once', async () => {
+test('Doom Points changes serialize, use latest remote value, and stay out of chat', async () => {
   const previousUser=game.user;
   const previousChat=globalThis.ChatMessage;
   let value=0,release;
-  const messages=[];
+  let announcements=0;
   game.user={isGM:true};
   game.settings={get:()=>value,async set(namespace,key,next){
     if(next===1) await new Promise(resolve=>{release=resolve;});
     value=next;
   }};
-  globalThis.ChatMessage={create:async message=>messages.push(message)};
+  globalThis.ChatMessage={create:async()=>{announcements++;}};
   try {
     const store=new DoomPointsStore();
     const first=store.change(current=>current+1);
@@ -42,21 +42,20 @@ test('Doom Points changes serialize, use latest remote value, and announce once'
     release();
     await Promise.all([first,second]);
     assert.equal(value,2);
-    assert.equal(messages.length,2);
-    assert.match(messages[1].content,/\+1; текущий запас: 2/);
+    assert.equal(announcements,0);
     value=7; // update received from another client before the next local operation
     await store.change(current=>current-1);
     assert.equal(value,6);
-    assert.match(messages[2].content,/-1; текущий запас: 6/);
+    assert.equal(announcements,0);
     await store.change(6);
-    assert.equal(messages.length,3);
+    assert.equal(announcements,0);
     game.user.isGM=false;
     assert.equal(await store.change(10),false);
     assert.equal(value,6);
   } finally {game.user=previousUser;globalThis.ChatMessage=previousChat;}
 });
 
-test('Doom Points save errors leave the queue usable and never announce a failed change', async () => {
+test('Doom Points save errors leave the queue usable and never announce a change', async () => {
   const previousUser=game.user;
   const previousChat=globalThis.ChatMessage;
   let value=0,fail=true,announcements=0;
@@ -68,9 +67,9 @@ test('Doom Points save errors leave the queue usable and never announce a failed
     await assert.rejects(store.change(1),/denied/);
     assert.equal(value,0);assert.equal(announcements,0);
     await store.change(1);
-    assert.equal(value,1);assert.equal(announcements,1);
+    assert.equal(value,1);assert.equal(announcements,0);
     await store.change(1000);
-    assert.equal(value,1);assert.equal(announcements,1);
+    assert.equal(value,1);assert.equal(announcements,0);
   } finally {game.user=previousUser;globalThis.ChatMessage=previousChat;}
 });
 
@@ -113,7 +112,7 @@ test('untouched Doom Points input follows a remote update without writing back; 
     input.blur();await input.lastBlur;
     assert.equal(value,6);
     assert.equal(writes,1);
-    assert.equal(announcements,1);
+    assert.equal(announcements,0);
 
     listeners.focus();
     input.value='8';listeners.input();
