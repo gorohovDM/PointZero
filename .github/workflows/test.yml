@@ -1,0 +1,69 @@
+name: Publish test Foundry system
+
+on:
+  push:
+    branches: [test]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: point-zero-test-channel
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/test'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run regression and manifest checks
+        run: node --test tests/regression.test.mjs tests/test-manifest.test.mjs
+      - name: Build test package
+        run: |
+          mkdir -p dist/package
+          node scripts/build-test-manifest.mjs system.json dist/system.json dist/build.json
+          cp -a point-zero.mjs module templates styles assets README.md LICENSE dist/package/
+          cp dist/system.json dist/package/system.json
+          (cd dist/package && zip -q -r ../point-zero.zip system.json point-zero.mjs module templates styles assets README.md LICENSE)
+          test "$(unzip -Z1 dist/point-zero.zip | head -n 1)" = system.json
+          unzip -tq dist/point-zero.zip
+          unzip -p dist/point-zero.zip system.json | cmp - dist/system.json
+          git diff --exit-code -- system.json
+      - name: Publish immutable test prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="test-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; refusing to replace its assets." >&2
+            exit 1
+          fi
+          gh release create "$tag" dist/point-zero.zip \
+            --target "$GITHUB_SHA" --title "Point Zero test $tag" \
+            --notes "Test build from $GITHUB_SHA. Install using the test-channel manifest." \
+            --prerelease --latest=false
+      - name: Advance test-channel manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin test-channel >/dev/null; then
+            git fetch origin test-channel
+            if git cat-file -e origin/test-channel:build.json 2>/dev/null; then
+              git show origin/test-channel:build.json > dist/current-build.json
+              node -e 'const fs=require("fs"); const old=JSON.parse(fs.readFileSync("dist/current-build.json")); const next=JSON.parse(fs.readFileSync("dist/build.json")); if (old.runNumber>next.runNumber || (old.runNumber===next.runNumber && old.runAttempt>=next.runAttempt)) { console.error("A newer or identical test build is already published"); process.exit(1); }'
+            fi
+            git switch -c test-channel --track origin/test-channel
+          else
+            git switch --orphan test-channel
+            git rm -rf --quiet .
+          fi
+          cp dist/system.json system.json
+          cp dist/build.json build.json
+          git add system.json build.json
+          git commit -m "Publish test build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          git push origin HEAD:test-channel
