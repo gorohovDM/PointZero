@@ -24,9 +24,28 @@ jobs:
       - name: Run regression and manifest checks
         run: node --test tests/regression.test.mjs tests/test-manifest.test.mjs
       - name: Build test package
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p dist/package
-          node scripts/build-test-manifest.mjs system.json dist/system.json dist/build.json
+          metadata=()
+          if git ls-remote --exit-code --heads origin test-channel >/dev/null; then
+            git fetch origin test-channel
+            git show origin/test-channel:build.json > dist/current-build.json
+            metadata+=(dist/current-build.json)
+          else
+            echo null > dist/current-build.json
+            metadata+=(dist/current-build.json)
+          fi
+          # A published release can be newer than the channel after a failed channel push.
+          latest=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq '.[] | select(.prerelease and (.tag_name | test("^test-[0-9]+-[0-9]+$")) and any(.assets[]; .name == "build.json")) | .tag_name' | sort -V | tail -n 1)
+          if [ -n "$latest" ]; then
+            mkdir -p dist/recovery
+            gh release download "$latest" --pattern build.json --dir dist/recovery
+            metadata+=(dist/recovery/build.json)
+          fi
+          node scripts/build-test-manifest.mjs system.json dist/system.json dist/build.json "${metadata[@]}"
           cp -a point-zero.mjs module templates styles assets README.md LICENSE dist/package/
           cp dist/system.json dist/package/system.json
           (cd dist/package && zip -q -r ../point-zero.zip system.json point-zero.mjs module templates styles assets README.md LICENSE)
@@ -43,7 +62,7 @@ jobs:
             echo "Release $tag already exists; refusing to replace its assets." >&2
             exit 1
           fi
-          gh release create "$tag" dist/point-zero.zip \
+          gh release create "$tag" dist/build.json dist/point-zero.zip \
             --target "$GITHUB_SHA" --title "Point Zero test $tag" \
             --notes "Test build from $GITHUB_SHA. Install using the test-channel manifest." \
             --prerelease --latest=false
@@ -55,7 +74,7 @@ jobs:
             git fetch origin test-channel
             if git cat-file -e origin/test-channel:build.json 2>/dev/null; then
               git show origin/test-channel:build.json > dist/current-build.json
-              node -e 'const fs=require("fs"); const old=JSON.parse(fs.readFileSync("dist/current-build.json")); const next=JSON.parse(fs.readFileSync("dist/build.json")); if (old.runNumber>next.runNumber || (old.runNumber===next.runNumber && old.runAttempt>=next.runAttempt)) { console.error("A newer or identical test build is already published"); process.exit(1); }'
+              node --input-type=module -e 'import {readFileSync} from "node:fs"; import {assertCanAdvance} from "./scripts/build-test-manifest.mjs"; assertCanAdvance(JSON.parse(readFileSync("dist/current-build.json")), JSON.parse(readFileSync("dist/build.json")));'
             fi
             git switch -c test-channel --track origin/test-channel
           else
