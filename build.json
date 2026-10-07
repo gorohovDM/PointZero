@@ -1,6 +1,8 @@
 {
-  "runNumber": 7,
+  "runNumber": 8,
   "runAttempt": 1,
-  "sourceSha": "9fc6a40f794b7c41b2020ccd32eea6ec7cd99bba",
-  "version": "0.2.8.7.1"
+  "sourceSha": "8dd6911fe7783cf05fbf1fbdbcceee8c3e69529b",
+  "version": "0.2.8.8.1",
+  "baseVersion": "0.2.8",
+  "versionRunNumber": 8
 }
